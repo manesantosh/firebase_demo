@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../components/custom_iconButton.dart';
 import '../components/custom_textFormField.dart';
@@ -13,6 +12,8 @@ class Register extends StatefulWidget {
 
 class _RegisterState extends State<Register> {
   final _formKey = GlobalKey<FormState>();
+  // final databaseReference = FirebaseDatabase.instance.ref();
+
 
   final ButtonStyle roundedButtonStyle = ButtonStyle(
     splashFactory: InkRipple.splashFactory,
@@ -26,6 +27,13 @@ class _RegisterState extends State<Register> {
     backgroundColor:
         MaterialStateColor.resolveWith((states) => Colors.greenAccent),
   );
+
+  @override
+  void initState(){
+    super.initState();
+    // Firebase.initializeApp();
+    // FirebaseFirestore.instance.collection('books').doc().set({ 'title': 'title', 'author': 'author' });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +50,7 @@ class _RegisterState extends State<Register> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    signUp,
+                    signIn,
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                   ),
                   const SizedBox(height: 15),
@@ -76,7 +84,9 @@ class _RegisterState extends State<Register> {
                             ),
                             ElevatedButton(
                                 style: roundedButtonStyle,
-                                onPressed: () {},
+                                onPressed: () {
+                                  // createRecord();
+                                },
                                 child: const Text(
                                   signIn,
                                   style: TextStyle(
@@ -135,4 +145,15 @@ class _RegisterState extends State<Register> {
       ),
     );
   }
+
+  // void createRecord() {
+  //   databaseReference.child("1").set({
+  //     'title': 'Mastering EJB',
+  //     'description': 'Programming Guide for J2EE'
+  //   });
+  //   databaseReference.child("2").set({
+  //     'title': 'Flutter in Action',
+  //     'description': 'Complete Programming Guide to learn Flutter'
+  //   });
+  // }
 }
