@@ -1,10 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../components/custom_iconButton.dart';
 import '../components/custom_textFormField.dart';
 import '../constants/constant_strings.dart';
 
 class Register extends StatefulWidget {
-  const Register({super.key});
+  final String screen;
+
+  const Register({super.key, required this.screen});
 
   @override
   State<Register> createState() => _RegisterState();
@@ -12,27 +15,98 @@ class Register extends StatefulWidget {
 
 class _RegisterState extends State<Register> {
   final _formKey = GlobalKey<FormState>();
-  // final databaseReference = FirebaseDatabase.instance.ref();
+  FirebaseAuth auth = FirebaseAuth.instance;
 
-
-  final ButtonStyle roundedButtonStyle = ButtonStyle(
-    splashFactory: InkRipple.splashFactory,
-    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-        RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.0),
-            side: const BorderSide(color: Colors.green))),
-    padding: MaterialStateProperty.all(
-        const EdgeInsets.symmetric(vertical: 10, horizontal: 50)),
-    elevation: MaterialStateProperty.all(8),
-    backgroundColor:
-        MaterialStateColor.resolveWith((states) => Colors.greenAccent),
-  );
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    // Firebase.initializeApp();
-    // FirebaseFirestore.instance.collection('books').doc().set({ 'title': 'title', 'author': 'author' });
+  }
+
+  Future<void> createAccount(BuildContext context) async {
+    String emailAddress = emailController.text;
+    String password = passwordController.text;
+    print("email: $emailAddress, password: $password");
+    try {
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+        email: emailAddress,
+        password: password,
+      )
+          .then((value) {
+        alertDialog("Registration Successful...", "", homeScreen);
+      });
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'weak-password') {
+        alertDialog(
+            "Registration Failed...",
+            "The password provided is too weak.\n Please provide a strong password",
+            null);
+      } else if (e.code == 'email-already-in-use') {
+        alertDialog(
+            "Registration Failed...",
+            "The account already exists for that email.\n Please try with another email",
+            null);
+      }
+    } catch (e) {
+      alertDialog("Registration Failed...", e.toString(), null);
+    }
+  }
+
+  void alertDialog(String title, String mainText, String? navigationString) {
+    showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        content: Text(
+          mainText,
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              if (navigationString != null) {
+                Navigator.pushNamed(context, navigationString);
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> loginUsingCredentials(BuildContext context) async {
+    String emailAddress = emailController.text;
+    String password = passwordController.text;
+
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      if (user == null) {
+        try {
+          final credential = await FirebaseAuth.instance
+              .signInWithEmailAndPassword(
+                  email: emailAddress, password: password)
+              .then((value) {
+            alertDialog("Login Successful...", "", homeScreen);
+          });
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'user-not-found') {
+            alertDialog(
+                "Login Failed...", "No user found for that email.", null);
+          } else if (e.code == 'wrong-password') {
+            alertDialog("Login Failed...",
+                "Wrong password provided for that user.", null);
+          }
+        }
+      } else {
+        alertDialog("Login Failed...", 'User is signed in!', null);
+      }
+    });
   }
 
   @override
@@ -49,15 +123,16 @@ class _RegisterState extends State<Register> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    signIn,
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                  Text(
+                    widget.screen,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 22),
                   ),
                   const SizedBox(height: 15),
-                  const Text(
-                    signUpMsg,
+                  Text(
+                    "Hey, Enter your details to ${widget.screen} \n to your account",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18),
+                    style: const TextStyle(fontSize: 18),
                   ),
                   Container(
                     margin: const EdgeInsets.all(30),
@@ -65,31 +140,39 @@ class _RegisterState extends State<Register> {
                         key: _formKey,
                         child: Column(
                           children: [
-                            const CustomTextFormField(
+                            CustomTextFormField(
                                 inputTextStr: email,
                                 errorTextStr: emailError,
-                                inputRegex: emailRegex),
+                                inputRegex: RegExp(emailRegex),
+                                customController: emailController),
                             const SizedBox(
                               height: 20,
                             ),
-                            const CustomTextFormField(
+                            CustomTextFormField(
                                 inputTextStr: password,
                                 errorTextStr: passwordError,
-                                inputRegex: passwordRegex),
+                                inputRegex: RegExp(passwordRegex),
+                                customController: passwordController),
                             TextButton(
                                 onPressed: () {},
-                                child: const Text(forgotPassword)),
+                                child: Visibility(
+                                    visible: (widget.screen == "Login"),
+                                    child: const Text(forgotPassword))),
                             const SizedBox(
                               height: 30,
                             ),
                             ElevatedButton(
                                 style: roundedButtonStyle,
                                 onPressed: () {
-                                  // createRecord();
+                                  if (_formKey.currentState!.validate()) {
+                                    (widget.screen == "Login")
+                                        ? (loginUsingCredentials(context))
+                                        : (createAccount(context));
+                                  }
                                 },
-                                child: const Text(
-                                  signIn,
-                                  style: TextStyle(
+                                child: Text(
+                                  widget.screen,
+                                  style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold),
                                 )),
@@ -97,7 +180,7 @@ class _RegisterState extends State<Register> {
                               height: 40,
                             ),
                             Text(
-                              orSignInWith,
+                              "-------- Or ${widget.screen} with --------",
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black.withOpacity(0.6)),
@@ -124,12 +207,24 @@ class _RegisterState extends State<Register> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(dontHaveAccountStr),
+                                Text((widget.screen == "Login")
+                                    ? (dontHaveAccountStr)
+                                    : (haveAnAccount)),
                                 TextButton(
-                                    onPressed: () {},
-                                    child: const Text(
-                                      registerNow,
-                                      style: TextStyle(
+                                    onPressed: () {
+                                      (widget.screen == "Login")
+                                          ? (Navigator.of(context).pushNamed(
+                                              registerScreen,
+                                              arguments: "Register"))
+                                          : (Navigator.of(context).pushNamed(
+                                              loginScreen,
+                                              arguments: "Login"));
+                                    },
+                                    child: Text(
+                                      (widget.screen == "Login")
+                                          ? (registerNow)
+                                          : (logInTxt),
+                                      style: const TextStyle(
                                           fontWeight: FontWeight.bold),
                                     )),
                               ],
@@ -146,14 +241,17 @@ class _RegisterState extends State<Register> {
     );
   }
 
-  // void createRecord() {
-  //   databaseReference.child("1").set({
-  //     'title': 'Mastering EJB',
-  //     'description': 'Programming Guide for J2EE'
-  //   });
-  //   databaseReference.child("2").set({
-  //     'title': 'Flutter in Action',
-  //     'description': 'Complete Programming Guide to learn Flutter'
-  //   });
-  // }
+  // button style
+  final ButtonStyle roundedButtonStyle = ButtonStyle(
+    splashFactory: InkRipple.splashFactory,
+    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+        RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15.0),
+            side: const BorderSide(color: Colors.green))),
+    padding: MaterialStateProperty.all(
+        const EdgeInsets.symmetric(vertical: 10, horizontal: 50)),
+    elevation: MaterialStateProperty.all(8),
+    backgroundColor:
+        MaterialStateColor.resolveWith((states) => Colors.greenAccent),
+  );
 }

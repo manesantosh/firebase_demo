@@ -1,17 +1,17 @@
-
+import 'package:firebase/constants/constant_strings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class HomeScreenState extends StatefulWidget{
+class HomeScreenState extends StatefulWidget {
   const HomeScreenState({super.key});
 
   @override
   State<StatefulWidget> createState() => _HomeScreen();
 }
 
-class _HomeScreen extends State<HomeScreenState>{
-
+class _HomeScreen extends State<HomeScreenState> {
   @override
-  void initState(){
+  void initState() {
     super.initState();
   }
 
@@ -25,7 +25,44 @@ class _HomeScreen extends State<HomeScreenState>{
         backgroundColor: Colors.blueGrey,
         elevation: 5,
       ),
-      body: Container(),
+      body: Container(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context)
+                      .pushNamed(loginScreen, arguments: "Login");
+                },
+                child: const Text("Login"),
+              ),
+              const SizedBox(
+                height: 30,
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context)
+                      .pushNamed(loginScreen, arguments: "Register");
+                },
+                child: const Text("Register"),
+              ),
+              const SizedBox(
+                height: 30,
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut().then((value) => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('signed out...')),
+                  ));
+                },
+                child: const Text("LogOut"),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
