@@ -2,12 +2,15 @@
 const String registerScreen = "./register";
 const String homeScreen = "./home";
 const String loginScreen = "./login";
+const String phoneScreen = "./phone";
+const String pinScreen = "./pinScreen";
 
 // regex constants
 const String emailRegex =
     r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$';
 const String passwordRegex =
     r'^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$';
+const String phoneRegex = '^(?:[+0]9)?[0-9]{10}';
 
 // localization strings
 const String registerTitle = "Register";
@@ -16,7 +19,9 @@ const String signUpMsg = "Hey, Enter your details to login \n to your account";
 const String email = "Email";
 const String emailError = "Please enter valid email";
 const String password = "Password";
+const String phone = "Phone";
 const String passwordError = "Password Ex: Test@123";
+const String phoneError = "Please enter valid phone number";
 const String forgotPassword = "Forgot Password";
 const String signIn = "Sign In";
 const String orSignInWith = "-------- Or Sign in with --------";
@@ -25,4 +30,4 @@ const String apple = "Apple";
 const String dontHaveAccountStr = "Don't have an account?";
 const String registerNow = "Register Now";
 const String logInTxt = "Log In";
-const String haveAnAccount = "Have an Account";
+const String haveAnAccount = "Have an Account?";

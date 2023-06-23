@@ -52,10 +52,21 @@ class _HomeScreen extends State<HomeScreenState> {
                 height: 30,
               ),
               ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context)
+                      .pushNamed(phoneScreen, arguments: "Phone");
+                },
+                child: const Text("Phone Authentication"),
+              ),
+              const SizedBox(
+                height: 30,
+              ),
+              ElevatedButton(
                 onPressed: () async {
-                  await FirebaseAuth.instance.signOut().then((value) => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('signed out...')),
-                  ));
+                  await FirebaseAuth.instance.signOut().then(
+                      (value) => ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('signed out...')),
+                          ));
                 },
                 child: const Text("LogOut"),
               ),

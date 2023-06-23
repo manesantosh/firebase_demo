@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:pinput/pinput.dart';
 import '../components/custom_iconButton.dart';
 import '../components/custom_textFormField.dart';
 import '../constants/constant_strings.dart';
@@ -15,14 +17,35 @@ class Register extends StatefulWidget {
 
 class _RegisterState extends State<Register> {
   final _formKey = GlobalKey<FormState>();
-  FirebaseAuth auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  TextEditingController phoneController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
+  late StreamController<int> _events;
+  int _counter = 0;
 
   @override
   void initState() {
     super.initState();
+    _events = StreamController<int>();
+    _events.add(60);
+  }
+
+  void _startTimer() {
+    late Timer _timer;
+    _counter = 60;
+    // if (timer != null) {
+    //   _timer.cancel();
+    // }
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      //setState(() {
+      (_counter > 0) ? _counter-- : _timer.cancel();
+      //});
+      print(_counter);
+      _events.add(_counter);
+    });
   }
 
   Future<void> createAccount(BuildContext context) async {
@@ -30,13 +53,13 @@ class _RegisterState extends State<Register> {
     String password = passwordController.text;
     print("email: $emailAddress, password: $password");
     try {
-      final credential = await FirebaseAuth.instance
+      final credential = await _auth
           .createUserWithEmailAndPassword(
         email: emailAddress,
         password: password,
       )
           .then((value) {
-        alertDialog("Registration Successful...", "", homeScreen);
+        alertDialog("Registration Successful...", null, homeScreen);
       });
     } on FirebaseAuthException catch (e) {
       if (e.code == 'weak-password') {
@@ -55,32 +78,6 @@ class _RegisterState extends State<Register> {
     }
   }
 
-  void alertDialog(String title, String mainText, String? navigationString) {
-    showDialog<String>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
-        content: Text(
-          mainText,
-          style: const TextStyle(fontSize: 16),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () {
-              if (navigationString != null) {
-                Navigator.pushNamed(context, navigationString);
-              }
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> loginUsingCredentials(BuildContext context) async {
     String emailAddress = emailController.text;
     String password = passwordController.text;
@@ -88,11 +85,11 @@ class _RegisterState extends State<Register> {
     FirebaseAuth.instance.authStateChanges().listen((User? user) async {
       if (user == null) {
         try {
-          final credential = await FirebaseAuth.instance
+          final credential = await _auth
               .signInWithEmailAndPassword(
                   email: emailAddress, password: password)
               .then((value) {
-            alertDialog("Login Successful...", "", homeScreen);
+            alertDialog("Login Successful...", null, homeScreen);
           });
         } on FirebaseAuthException catch (e) {
           if (e.code == 'user-not-found') {
@@ -107,6 +104,171 @@ class _RegisterState extends State<Register> {
         alertDialog("Login Failed...", 'User is signed in!', null);
       }
     });
+  }
+
+  Future<void> loginWithOTP(BuildContext context) async {
+    print(phoneController.text);
+    _auth.verifyPhoneNumber(
+        phoneNumber: phoneController.text,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (AuthCredential credential) async {
+          Navigator.of(context).pop();
+          UserCredential result = await _auth.signInWithCredential(credential);
+          User user = result.user!;
+
+          print("user: ${result.user}");
+
+          if (user != null) {
+            alertDialog(
+                "You are Logged in successfully", user.phoneNumber, null);
+          } else {
+            alertDialog("Error", "Error", null);
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          if (e.code == 'invalid-phone-number') {
+            alertDialog("Authentication Failed...",
+                "The provided phone number is not valid.", null);
+          } else {
+            alertDialog(e.toString(), null, null);
+          }
+        },
+        codeSent: (String verificationId, [int? forceResendingToken]) {
+          showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) {
+                final defaultPinTheme = PinTheme(
+                  width: 56,
+                  height: 56,
+                  textStyle: const TextStyle(
+                      fontSize: 20,
+                      color: Color.fromRGBO(30, 60, 87, 1),
+                      fontWeight: FontWeight.w600),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: const Color.fromRGBO(234, 239, 243, 1)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                );
+
+                final focusedPinTheme = defaultPinTheme.copyDecorationWith(
+                  border:
+                      Border.all(color: const Color.fromRGBO(114, 178, 238, 1)),
+                  borderRadius: BorderRadius.circular(8),
+                );
+
+                final submittedPinTheme = defaultPinTheme.copyWith(
+                  decoration: defaultPinTheme.decoration?.copyWith(
+                    color: const Color.fromRGBO(234, 239, 243, 1),
+                  ),
+                );
+                var smsCode = "";
+                _startTimer();
+                return AlertDialog(
+                  title: const Text("OTP Validation"),
+                  content: StreamBuilder<int>(
+                      stream: _events.stream,
+                      builder:
+                          (BuildContext context, AsyncSnapshot<int> snapshot) {
+                        print(snapshot.data.toString());
+                        return SizedBox(
+                          height: 215,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Pinput(
+                                length: 6,
+                                hapticFeedbackType:
+                                    HapticFeedbackType.lightImpact,
+                                showCursor: true,
+                                onChanged: (value) {
+                                  smsCode = value;
+                                },
+                              ),
+                              Text('00:${snapshot.data.toString()}'),
+                            ],
+                          ),
+                        );
+                      }),
+                  actions: <Widget>[
+                    TextButton(
+                      child: const Text("Verify phone"),
+                      onPressed: () async {
+                        final code = smsCode;
+                        AuthCredential credential =
+                            PhoneAuthProvider.credential(
+                                verificationId: verificationId, smsCode: code);
+
+                        UserCredential result =
+                            await _auth.signInWithCredential(credential);
+
+                        User user = result.user!;
+                        if (user != null) {
+                          Navigator.pop(context, 'Cancel');
+                          alertDialog("You are Logged in successfully",
+                              user.phoneNumber, null);
+                        } else {
+                          alertDialog("Error", "Error", null);
+                        }
+                      },
+                    )
+                  ],
+                );
+              });
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {});
+  }
+
+  void alertDialog(String title, String? mainText, String? navigationString) {
+    showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        actionsPadding: EdgeInsets.zero,
+        insetPadding: EdgeInsets.zero,
+        iconPadding: EdgeInsets.zero,
+        buttonPadding: const EdgeInsets.only(bottom: 10, right: 10),
+        titlePadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        contentPadding: EdgeInsets.zero,
+        elevation: 5,
+        title: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        content: Visibility(
+          visible: (mainText != null),
+          replacement: const SizedBox.shrink(),
+          child: Text(
+            mainText ?? "",
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'Cancel'),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              if (navigationString != null) {
+                Navigator.pushNamed(context, navigationString);
+              } else {
+                Navigator.pop(context, 'Cancel');
+              }
+            },
+            child: const Text(
+              'OK',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -139,25 +301,34 @@ class _RegisterState extends State<Register> {
                     child: Form(
                         key: _formKey,
                         child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CustomTextFormField(
-                                inputTextStr: email,
-                                errorTextStr: emailError,
-                                inputRegex: RegExp(emailRegex),
-                                customController: emailController),
-                            const SizedBox(
-                              height: 20,
-                            ),
-                            CustomTextFormField(
-                                inputTextStr: password,
-                                errorTextStr: passwordError,
-                                inputRegex: RegExp(passwordRegex),
-                                customController: passwordController),
-                            TextButton(
-                                onPressed: () {},
-                                child: Visibility(
-                                    visible: (widget.screen == "Login"),
-                                    child: const Text(forgotPassword))),
+                            if (widget.screen == "Phone")
+                              CustomTextFormField(
+                                  inputTextStr: phone,
+                                  errorTextStr: phoneError,
+                                  inputRegex: RegExp(phoneRegex),
+                                  customController: phoneController),
+                            if (widget.screen != "Phone")
+                              CustomTextFormField(
+                                  inputTextStr: email,
+                                  errorTextStr: emailError,
+                                  inputRegex: RegExp(emailRegex),
+                                  customController: emailController),
+                            if (widget.screen != "Phone")
+                              const SizedBox(
+                                height: 20,
+                              ),
+                            if (widget.screen != "Phone")
+                              CustomTextFormField(
+                                  inputTextStr: password,
+                                  errorTextStr: passwordError,
+                                  inputRegex: RegExp(passwordRegex),
+                                  customController: passwordController),
+                            if (widget.screen == "Login")
+                              TextButton(
+                                  onPressed: () {},
+                                  child: const Text(forgotPassword)),
                             const SizedBox(
                               height: 30,
                             ),
@@ -165,13 +336,20 @@ class _RegisterState extends State<Register> {
                                 style: roundedButtonStyle,
                                 onPressed: () {
                                   if (_formKey.currentState!.validate()) {
-                                    (widget.screen == "Login")
-                                        ? (loginUsingCredentials(context))
-                                        : (createAccount(context));
+                                    switch (widget.screen) {
+                                      case "Login":
+                                        loginUsingCredentials(context);
+                                      case "Register":
+                                        createAccount(context);
+                                      case "Phone":
+                                        loginWithOTP(context);
+                                    }
                                   }
                                 },
                                 child: Text(
-                                  widget.screen,
+                                  (widget.screen == "Phone")
+                                      ? ("Get OTP")
+                                      : (widget.screen),
                                   style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold),
@@ -180,7 +358,7 @@ class _RegisterState extends State<Register> {
                               height: 40,
                             ),
                             Text(
-                              "-------- Or ${widget.screen} with --------",
+                              "-------- Or ${(widget.screen == "Phone") ? ("sign up") : (widget.screen)} with --------",
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black.withOpacity(0.6)),
@@ -204,30 +382,34 @@ class _RegisterState extends State<Register> {
                             const SizedBox(
                               height: 20,
                             ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text((widget.screen == "Login")
-                                    ? (dontHaveAccountStr)
-                                    : (haveAnAccount)),
-                                TextButton(
-                                    onPressed: () {
-                                      (widget.screen == "Login")
-                                          ? (Navigator.of(context).pushNamed(
-                                              registerScreen,
-                                              arguments: "Register"))
-                                          : (Navigator.of(context).pushNamed(
-                                              loginScreen,
-                                              arguments: "Login"));
-                                    },
-                                    child: Text(
-                                      (widget.screen == "Login")
-                                          ? (registerNow)
-                                          : (logInTxt),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    )),
-                              ],
+                            Visibility(
+                              visible: (widget.screen != "Phone"),
+                              replacement: const SizedBox.shrink(),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text((widget.screen == "Login")
+                                      ? (dontHaveAccountStr)
+                                      : (haveAnAccount)),
+                                  TextButton(
+                                      onPressed: () {
+                                        (widget.screen == "Login")
+                                            ? (Navigator.of(context)
+                                                .popAndPushNamed(registerScreen,
+                                                    arguments: "Register"))
+                                            : (Navigator.of(context)
+                                                .popAndPushNamed(loginScreen,
+                                                    arguments: "Login"));
+                                      },
+                                      child: Text(
+                                        (widget.screen == "Login")
+                                            ? (registerNow)
+                                            : (logInTxt),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      )),
+                                ],
+                              ),
                             )
                           ],
                         )),
